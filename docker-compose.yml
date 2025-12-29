@@ -1,0 +1,28 @@
+services:
+  # The FastAPI Backend
+  backend:
+    build: .
+    container_name: rag_backend
+    expose:
+      - "8000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - TF_ENABLE_ONEDNN_OPTS=0
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+
+  # The Streamlit Frontend
+  frontend:
+    build: 
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: rag_frontend
+    ports:
+      - "8501:8501" # Expose Streamlit to your browser
+    depends_on:
+      - backend # Wait for backend to start
+    environment:
+      - BACKEND_URL=http://backend:8000
