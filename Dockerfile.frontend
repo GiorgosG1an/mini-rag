@@ -1,0 +1,13 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Only install what the frontend needs
+RUN pip install streamlit requests
+
+# Copy only frontend code
+COPY src/frontend.py ./src/frontend.py
+
+EXPOSE 8501
+
+CMD ["streamlit", "run", "src/frontend.py", "--server.port=8501", "--server.address=0.0.0.0"]
