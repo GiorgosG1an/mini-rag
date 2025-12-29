@@ -4,7 +4,7 @@ import numpy as np
 import faiss
 from pathlib import Path
 from typing import List, Tuple, Optional
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer, CrossEncoder
 
 from src.ingestion import ProcessedChunk
 
@@ -17,11 +17,13 @@ class VectorStoreManager:
     Implements the 'Build Once, Read Many' pattern.
     """
 
-    def __init__(self, model_name: str= 'all-MiniLM-L6-v2'):
+    def __init__(self, model_name: str= 'all-MiniLM-L6-v2', reranker_name: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"):
         self.model_name = model_name
+        self.reranker_name = reranker_name
         
         # Lazy loading
         self._model = None
+        self._reranker = None
 
         self.index = None
         self.chunks: List[ProcessedChunk] = []
@@ -33,6 +35,14 @@ class VectorStoreManager:
             logger.info(f"Loading embedding model: {self.model_name}...")
             self._model = SentenceTransformer(self.model_name)
         return self._model
+    
+    @property
+    def reranker(self):
+        if self.reranker is None:
+            logger.info(f"Loading re-ranker model: {self.reranker_name}...")
+            self._reranker = CrossEncoder(self.reranker_name) 
+        
+        return self._reranker
 
     def create_index(self, chunks: List[ProcessedChunk]):
         """
@@ -123,6 +133,41 @@ class VectorStoreManager:
                 results.append((self.chunks[idx], float(score)))
         
         return results
+    
+    def search_with_rerank(self, query: str, k: int = 3, fetch_k: int = 20) -> List[Tuple[ProcessedChunk, float]]:
+        """
+        Two-stage retrieval:
+        1. Recall: Fetch top 'fetch_k' (e.g. 20) candidates using fast vector search.
+        2. Precision: Re-rank those candidates using the Cross-Encoder.
+        3. Return top 'k' (e.g. 3).
+        """
+        # 1. Fetch Candidates (Broad Search)
+        logger.info(f"Retrieving {fetch_k} candidates for re-ranking...")
+        candidates = self.search(query, k=fetch_k)
+
+        if not candidates:
+            return []
+        
+        # 2. Prepare Pairs for Cross-Encoder
+        passage_pairs = [[query, item[0].text] for item in candidates]
+
+        # 3. Predict Similarity Scores
+        scores = self.reranker.predict(passage_pairs)
+
+        # 4. Attach new scores to candidates
+        reranked_results = []
+        for i in range(len(candidates)):
+            chunk_obj = candidates[i][0]
+            new_score = float(scores[i])
+            reranked_results.append((chunk_obj, new_score))
+
+        # 5. Sort by new score (Descending)
+        reranked_results.sort(key=lambda x: x[1], reverse=True)
+
+        # 6. Slice the top k
+        top_results = reranked_results[:k]
+
+        return top_results
 
 if __name__ == "__main__":
     from ingestion import IngestionConfig, PDFIngestionPipeline
