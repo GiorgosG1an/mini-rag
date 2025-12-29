@@ -25,7 +25,7 @@ def run_rag_pipeline(pdf_path: str, query: str):
 
     # 2. Retrieval
     print(f"\nSearching for: '{query}'...")
-    retrieved_items = vector_store.search(query, k=3)
+    retrieved_items = vector_store.search_with_rerank(query, k=3, fetch_k=20)
 
     context_chunks = [item[0].text for item in retrieved_items]
 
