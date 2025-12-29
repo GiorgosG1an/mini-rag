@@ -16,7 +16,6 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 COPY src/ ./src/
-COPY data/ ./data/
 
 # Create a non-root user for security
 RUN useradd -m appuser
