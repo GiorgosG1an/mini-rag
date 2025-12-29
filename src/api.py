@@ -54,6 +54,7 @@ app = FastAPI(title="Mini-RAG API", version="1.0.0", lifespan=lifespan)
 class QueryRequest(BaseModel):
     query: str
     top_k: int = 3
+    fetch_k: int = 20
 
 class QueryResponse(BaseModel):
     answer: str
@@ -79,11 +80,18 @@ async def predict(payload: QueryRequest, request: Request):
 
     # 1. Retrieve
     try:
-        results = vector_store.search(payload.query, k=payload.top_k)
+        results = vector_store.search_with_rerank(payload.query, k=payload.top_k, fetch_k=20)
     except Exception as e:
         logger.error(f"Retrieval error: {e}")
         raise HTTPException(status_code=500, detail="Retrieval failed")
 
+    if not results or results[0][1] < 0.0:
+        logger.info("Low confidence retrieval. Aborting generation.")
+        return QueryResponse(
+            answer="I cannot find information about that in the document.",
+            sources=[],
+            latency_seconds=time.time() - start_time
+        )
     context_strs = [r[0].text for r in results]
     
     # 2. Generate
