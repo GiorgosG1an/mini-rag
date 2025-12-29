@@ -1,7 +1,7 @@
 import json
 import logging
 import nltk
-from typing import List, Dict
+from typing import List
 
 from src.retrieval import VectorStoreManager
 from src.generation import RAGGenerator, GenerationConfig
@@ -28,23 +28,27 @@ class RAGEvaluator:
 
         return hit
     
-    def evaluate_generation_faithfulness(self, answer: str, context: List[str]) -> float:
+    def evaluate_faithfullness_llm(self, answer: str, context: List[str]) -> int:
         """
-        Heuristic: What % of significant words in the answer appear in the context?
-        (A proxy for checking if the model is hallucinating words not in source).
+        LLM-as-a-judge.
+
+        Uses the FLAN-T5 model to check if the premise entails the hypothesis.
+
+        Returns 1 (Yes) or 0 (No).
         """
+        context_text = " ".join(context)
+        prompt = (
+            f"Premise: {context_text}\n\n"
+            f"Hypothesis: {answer}\n\n"
+            "Does the premise entail the hypothesis? Answer Yes or No."
+        )
 
-        answer_tokens = set(nltk.word_tokenize(answer.lower()))
-        stop_words = {'the', 'a', 'an', 'is', 'in', 'at', 'of', 'for', 'to', 'by', 'we'}
-        meaningful_tokens = answer_tokens - stop_words
+        result = self.generator.pipeline(prompt, max_new_tokens=5)
+        generated_text = result[0]['generated_text'].lower().strip()
 
-        if not meaningful_tokens:
-            return 0.0
-        
-        context_text = " ".join(context).lower()
-        match_count = sum(1 for token in meaningful_tokens if token in context_text)
-
-        return match_count / len(meaningful_tokens)
+        if "yes" in generated_text:
+            return 1
+        return 0
     
     def run_benchmark(self, dataset_path: str):
         """
@@ -74,7 +78,7 @@ class RAGEvaluator:
             if item["expected_page_match"] in retrieved_pages:
                 retrieval_hits += 1
             
-            faith_score = self.evaluate_generation_faithfulness(answer, context_chunks)
+            faith_score = self.evaluate_faithfullness_llm(answer, context_chunks)
             faithfulness_scores.append(faith_score)
 
             print(f"Q: {q}")
