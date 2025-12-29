@@ -1,0 +1,17 @@
+[
+    {
+        "question": "What is the formula for Scaled Dot-Product Attention?",
+        "expected_keywords": ["softmax", "sqrt", "dimension", "query", "key"],
+        "expected_page_match": 4
+    },
+    {
+        "question": "What is the dominant sequence transduction model?",
+        "expected_keywords": ["RNN", "LSTM", "recurrent", "convolutional"],
+        "expected_page_match": 2
+    },
+    {
+        "question": "How many layers does the encoder have?",
+        "expected_keywords": ["6", "six", "stack"],
+        "expected_page_match": 3
+    }
+]
