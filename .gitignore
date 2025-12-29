@@ -645,4 +645,4 @@ FodyWeavers.xsd
 *.msp
 
 # Project folders
-data/
+data/vector_store
