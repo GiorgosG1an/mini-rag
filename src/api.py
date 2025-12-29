@@ -62,7 +62,7 @@ class QueryResponse(BaseModel):
     latency_seconds: float
 
 @app.post("/predict", response_model=QueryResponse)
-async def predict(payload: QueryRequest, request: Request):
+def predict(payload: QueryRequest, request: Request):
     start_time = time.time()
     
     # Access models safely from App State
