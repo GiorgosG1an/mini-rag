@@ -38,7 +38,7 @@ class VectorStoreManager:
     
     @property
     def reranker(self):
-        if self.reranker is None:
+        if self._reranker is None:
             logger.info(f"Loading re-ranker model: {self.reranker_name}...")
             self._reranker = CrossEncoder(self.reranker_name) 
         
